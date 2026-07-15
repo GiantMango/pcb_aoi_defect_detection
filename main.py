@@ -34,7 +34,7 @@ def get_data():
     return data
 
 
-def show_image(sample):
+def show_data(sample):
     image = cv2.imread(os.path.join(DATA_DIR, sample["image_path"]))
     for box in sample["boxes"]:
         cv2.rectangle(
@@ -53,7 +53,7 @@ def main():
     i = 4
     data = get_data()
     pprint.pprint(data[i])
-    show_image(data[i])
+    show_data(data[i])
 
 
 if __name__ == "__main__":
