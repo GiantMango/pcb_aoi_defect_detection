@@ -4,42 +4,52 @@ import pprint
 
 
 def get_data():
+    paths = []
     data = []
     with open("train_data/index.txt", "r") as f:
         for line in f:
             dict = {}
             filename, annotation_filename = line.strip().split(" ")
-            dict["image"] = filename
-            dict["annotation"] = annotation_filename
-            data.append(dict)
+            dict["image_path"] = filename
+            dict["annotation_path"] = annotation_filename
+            paths.append(dict)
 
-    for d in data:
-        tree = ET.parse(f"train_data/{d['annotation']}")
+    for path in paths:
+        tree = ET.parse(f"train_data/{path['annotation_path']}")
         root = tree.getroot()
-        d["defects"] = []
-
+        dict = {"labels": [], "boxes": []}
         for object in root.findall("object"):
-            dict = {}
-            dict["label"] = object.find("name").text
-            dict["xmin"] = int(object.find("bndbox")[0].text)
-            dict["ymin"] = int(object.find("bndbox")[1].text)
-            dict["xmax"] = int(object.find("bndbox")[2].text)
-            dict["ymax"] = int(object.find("bndbox")[3].text)
-            d["defects"].append(dict)
+            dict["labels"].append(object.find("name").text)
+            dict["boxes"].append(
+                [
+                    int(object.find("bndbox").find("xmin").text),
+                    int(object.find("bndbox").find("ymin").text),
+                    int(object.find("bndbox").find("xmax").text),
+                    int(object.find("bndbox").find("ymax").text),
+                ]
+            )
+
+        data.append(
+            {
+                "image_path": path["image_path"],
+            }
+            | dict
+        )
 
     return data
 
 
 def main():
+    i = 4
     data = get_data()
-    pprint.pprint(data[2])
-    current = data[2]
-    image = cv2.imread(f"train_data/{current['image']}")
-    for d in current["defects"]:
+    pprint.pprint(data[i])
+    current = data[i]
+    image = cv2.imread(f"train_data/{current['image_path']}")
+    for box in current["boxes"]:
         cv2.rectangle(
             image,
-            (d["xmin"], d["ymin"]),
-            (d["xmax"], d["ymax"]),
+            (box[0], box[1]),
+            (box[2], box[3]),
             (255, 0, 0),
             2,
         )
