@@ -34,13 +34,9 @@ def get_data():
     return data
 
 
-def main():
-    i = 4
-    data = get_data()
-    pprint.pprint(data[i])
-    current = data[i]
-    image = cv2.imread(f"train_data/{current['image_path']}")
-    for box in current["boxes"]:
+def show_image(sample):
+    image = cv2.imread(os.path.join(DATA_DIR, sample["image_path"]))
+    for box in sample["boxes"]:
         cv2.rectangle(
             image,
             (box[0], box[1]),
@@ -51,6 +47,13 @@ def main():
     cv2.imshow("Image", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def main():
+    i = 4
+    data = get_data()
+    pprint.pprint(data[i])
+    show_image(data[i])
 
 
 if __name__ == "__main__":
