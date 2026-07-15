@@ -1,40 +1,35 @@
+import os
 import cv2
 import xml.etree.ElementTree as ET
 import pprint
 
+DATA_DIR = "train_data"
+LABEL_TO_ID = {"Bad_podu": 0, "Bad_qiaojiao": 1}
+
 
 def get_data():
-    paths = []
     data = []
-    with open("train_data/index.txt", "r") as f:
+    with open(os.path.join(DATA_DIR, "index.txt"), "r") as f:
         for line in f:
-            dict = {}
+            boxes = []
+            labels = []
+
             filename, annotation_filename = line.strip().split(" ")
-            dict["image_path"] = filename
-            dict["annotation_path"] = annotation_filename
-            paths.append(dict)
 
-    for path in paths:
-        tree = ET.parse(f"train_data/{path['annotation_path']}")
-        root = tree.getroot()
-        dict = {"labels": [], "boxes": []}
-        for object in root.findall("object"):
-            dict["labels"].append(object.find("name").text)
-            dict["boxes"].append(
-                [
-                    int(object.find("bndbox").find("xmin").text),
-                    int(object.find("bndbox").find("ymin").text),
-                    int(object.find("bndbox").find("xmax").text),
-                    int(object.find("bndbox").find("ymax").text),
-                ]
-            )
+            tree = ET.parse(os.path.join(DATA_DIR, annotation_filename))
+            root = tree.getroot()
 
-        data.append(
-            {
-                "image_path": path["image_path"],
-            }
-            | dict
-        )
+            for object in root.findall("object"):
+                labels.append(LABEL_TO_ID[object.find("name").text])
+                boxes.append(
+                    [
+                        int(object.find("bndbox").find("xmin").text),
+                        int(object.find("bndbox").find("ymin").text),
+                        int(object.find("bndbox").find("xmax").text),
+                        int(object.find("bndbox").find("ymax").text),
+                    ]
+                )
+            data.append({"image_path": filename, "boxes": boxes, "labels": labels})
 
     return data
 
