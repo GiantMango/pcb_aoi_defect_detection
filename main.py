@@ -2,9 +2,15 @@ import os
 import cv2
 import xml.etree.ElementTree as ET
 import pprint
+import torch
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.transforms import v2
+from torchvision import tv_tensors
+from PIL import Image
+import matplotlib.pyplot as plt
 
 DATA_DIR = "train_data"
-LABEL_TO_ID = {"Bad_podu": 0, "Bad_qiaojiao": 1}
+LABEL_TO_ID = {"background": 0, "Bad_podu": 1, "Bad_qiaojiao": 2}
 
 
 def get_data():
@@ -49,11 +55,33 @@ def show_data(sample):
     cv2.destroyAllWindows()
 
 
+def transform_image(image):
+    pil_image = Image.open(os.path.join(DATA_DIR, image["image_path"]))
+
+    transforms = v2.Compose(
+        [
+            v2.ToImage(),  # Convert to tensor, only needed if you had a PIL image
+            v2.ToDtype(torch.float32, scale=True),  # Normalize expects float input
+        ]
+    )
+
+    torch_image = transforms(pil_image)
+
+    return torch_image
+
+
 def main():
     i = 4
+    model = fasterrcnn_resnet50_fpn(weights="DEFAULT")
     data = get_data()
-    pprint.pprint(data[i])
-    show_data(data[i])
+    sample = data[i]
+    pprint.pprint(sample)
+    # show_data(data[i])
+    image = transform_image(sample)
+    boxes = torch.tensor(sample["boxes"], dtype=torch.float)
+    labels = torch.tensor(sample["labels"], dtype=torch.int64)
+    d = {"boxes": boxes, "labels": labels}
+    print(model([image], [d]))
 
 
 if __name__ == "__main__":
