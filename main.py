@@ -78,23 +78,13 @@ def prepare_model():
     return model
 
 
-def main():
-    model = prepare_model()
-    model.train()
+def train_model(model, data, batch_size, epoch_size):
+    batches = round(len(data) / batch_size)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
-
-    data_dict = get_data()
-    train_size = round(0.85 * len(data_dict))
-    train_dict = data_dict[:train_size]
-    validate_dict = data_dict[train_size:]
-
-    batch_size = 1
-    batches = round(train_size / batch_size)
-    epoch_size = 2
 
     for e in range(epoch_size):
         start = time.time()
-        random.shuffle(train_dict)
+        random.shuffle(data)
         epoch_loss = 0
 
         for b in range(batches):
@@ -103,7 +93,7 @@ def main():
 
             for i in range(batch_size):
                 d = {}
-                data = train_dict[b * batch_size + i]
+                data = data[b * batch_size + i]
                 images.append(transform_image(data))
                 d["boxes"] = torch.tensor(data["boxes"], dtype=torch.float)
                 d["labels"] = torch.tensor(data["labels"], dtype=torch.int64)
@@ -134,6 +124,51 @@ def main():
             },
             f"pcb_checkpoint_epoch_{e + 1}.pth",
         )
+
+
+def load_pretrained_model():
+    model = prepare_model()
+
+    checkpoint = torch.load(
+        "pcb_checkpoint_epoch_2.pth",
+        map_location="cpu",
+        weights_only=True,
+    )
+
+    model.load_state_dict(checkpoint["model_state_dict"])
+    return model
+
+
+def eval_model(model, data):
+    pass
+
+
+def main():
+
+    data_dict = get_data()
+    train_size = round(0.85 * len(data_dict))
+    train_dict = data_dict[:train_size]
+    validate_dict = data_dict[train_size:]
+    validate_size = len(validate_dict)
+    batch_size = 1
+    epoch_size = 2
+
+    model = load_pretrained_model()
+    model.eval()
+
+    images = []
+
+    for i in range(len(validate_size)):
+        data = validate_dict[i]
+        images.append(transform_image(data))
+
+    with torch.no_grad():
+        predictions = model(images)
+
+    prediction = predictions[0]
+    print(prediction)
+
+    # train_model(model, train_dict, batch_size, epoch_size)
 
 
 if __name__ == "__main__":
