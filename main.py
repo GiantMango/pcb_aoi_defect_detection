@@ -3,6 +3,8 @@ import cv2
 import xml.etree.ElementTree as ET
 import pprint
 import torch
+from torch.utils.data import Dataset
+from torchvision.io import decode_image
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.transforms import v2
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -12,6 +14,7 @@ import time
 
 DATA_DIR = "train_data"
 LABEL_TO_ID = {"background": 0, "Bad_podu": 1, "Bad_qiaojiao": 2}
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def get_data():
@@ -93,10 +96,12 @@ def train_model(model, data, batch_size, epoch_size):
 
             for i in range(batch_size):
                 d = {}
-                data = data[b * batch_size + i]
-                images.append(transform_image(data))
-                d["boxes"] = torch.tensor(data["boxes"], dtype=torch.float)
-                d["labels"] = torch.tensor(data["labels"], dtype=torch.int64)
+                sample = data[b * batch_size + i]
+                images.append(transform_image(sample).to(DEVICE))
+                d["boxes"] = torch.tensor(sample["boxes"], dtype=torch.float).to(DEVICE)
+                d["labels"] = torch.tensor(sample["labels"], dtype=torch.int64).to(
+                    DEVICE
+                )
                 targets.append(d)
 
             optimizer.zero_grad()
@@ -122,7 +127,7 @@ def train_model(model, data, batch_size, epoch_size):
                 "optimizer_state_dict": optimizer.state_dict(),
                 "average_loss": average_loss,
             },
-            f"pcb_checkpoint_epoch_{e + 1}.pth",
+            f"trained_model/pcb_checkpoint_epoch_{e + 1}.pth",
         )
 
 
@@ -146,29 +151,21 @@ def eval_model(model, data):
 def main():
 
     data_dict = get_data()
+    random.shuffle(data_dict)
     train_size = round(0.85 * len(data_dict))
     train_dict = data_dict[:train_size]
     validate_dict = data_dict[train_size:]
     validate_size = len(validate_dict)
     batch_size = 1
-    epoch_size = 2
+    epoch_size = 10
 
-    model = load_pretrained_model()
-    model.eval()
+    print(f"PyTorch: {torch.__version__}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    print(f"Using device: {DEVICE}")
 
-    images = []
-
-    for i in range(len(validate_size)):
-        data = validate_dict[i]
-        images.append(transform_image(data))
-
-    with torch.no_grad():
-        predictions = model(images)
-
-    prediction = predictions[0]
-    print(prediction)
-
-    # train_model(model, train_dict, batch_size, epoch_size)
+    model = prepare_model()
+    model.to(DEVICE)
+    train_model(model, train_dict, batch_size, epoch_size)
 
 
 if __name__ == "__main__":
